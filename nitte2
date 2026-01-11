@@ -1,0 +1,68 @@
+# 1. Upload Excel file
+from google.colab import files
+uploaded = files.upload()
+
+# 2. Read Excel file
+import pandas as pd
+
+df = pd.read_excel('Final_data.xlsx')
+print(df.head())
+
+# 3. Select numeric columns for clustering
+features = [
+    'Cases',
+    'Deaths',
+    'Temp',
+    'preci',
+    'LAI',
+    'Latitude',
+    'Longitude'
+]
+
+X = df[features].copy()
+
+# Convert columns to numeric, coercing errors to NaN
+for col in features:
+    X[col] = pd.to_numeric(X[col], errors='coerce')
+
+# 4. Handle missing values
+X = X.fillna(X.mean())
+
+# 5. Standardize data (VERY IMPORTANT for DBSCAN)
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 6. Apply DBSCAN
+from sklearn.cluster import DBSCAN
+
+dbscan = DBSCAN(eps=0.8, min_samples=5)  # you can tune eps
+df['Cluster'] = dbscan.fit_predict(X_scaled)
+
+# 7. Check results
+print(df['Cluster'].value_counts())
+print(df[['Cluster'] + features].head())
+
+# 8. Save results to Excel
+output_file = 'dbscan_clustered_outbreak_data.xlsx'
+df.to_excel(output_file, index=False)
+
+# 9. Download Excel file
+files.download(output_file)
+
+# 10. Plot clusters using Latitude & Longitude
+import matplotlib.pyplot as plt
+
+plt.scatter(
+    df['Longitude'],
+    df['Latitude'],
+    c=df['Cluster'],
+    cmap='viridis',
+    s=30
+)
+plt.xlabel('Longitude')
+plt.ylabel('Latitude')
+plt.title('DBSCAN Clustering of Disease Outbreaks')
+plt.colorbar(label='Cluster (-1 = Noise)')
+plt.show()
